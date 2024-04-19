@@ -1,20 +1,7 @@
-import express from 'express';
-import http from 'http';
-import { Server as SocketIOServer } from 'socket.io';
-import cors from 'cors';
 import * as amqp from 'amqplib';
+import axios from 'axios';
 
-const app = express();
-app.use(cors());
-const server = http.createServer(app);
-const io = new SocketIOServer(server, {
-    cors: {
-        origin: '*',
-        methods: ['GET', 'POST'],
-    },
-});
-
-async function consumeMessages(socket: SocketIOServer) {
+async function consumeMessages() {
     try {
         const connection = await amqp.connect('amqp://18.215.228.198');
         const channel = await connection.createChannel();
@@ -26,11 +13,15 @@ async function consumeMessages(socket: SocketIOServer) {
 
         channel.consume(queue, (msg) => {
             if (msg !== null) {
-                console.log('Mensaje recibido:', msg.content.toString());
-                const checkup = msg.content.toString();
-                const checkupData = JSON.parse(checkup);
-                console.log(checkupData)
-                io.emit('sendData', checkupData);
+                const checkup = JSON.parse(msg.content.toString());
+                console.log(checkup);
+                console.log('Mensaje recibido:', checkup);
+                const checkupData = {
+                    heartRate: checkup.heartRate,
+                    spo2: checkup.spo2,
+                    temperature: checkup.temperature
+                }
+                sendData(checkupData);
                 channel.ack(msg);
             }
         });
@@ -39,12 +30,13 @@ async function consumeMessages(socket: SocketIOServer) {
     }
 }
 
-io.on('connection', (socket) => {
-    console.log('Cliente conectado');
-});
+async function sendData(data: any) {
+    try {
+        await axios.post('http://localhost:3000/checkup', data);
+        console.log('Datos enviados correctamente a la API');
+    } catch (error) {
+        console.error('Error al enviar datos a la API:', error);
+    }
+}
 
-consumeMessages(io);
-
-server.listen(8080, () => {
-    console.log('Servidor Socket.IO escuchando en el puerto 4000');
-});
+consumeMessages();
