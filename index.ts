@@ -32,7 +32,7 @@ async function consumeMessages() {
 
 async function sendData(data: any) {
     try {
-        await axios.post('http://localhost:3000/checkup', data);
+        await axios.post('http://18.205.225.198:3000/checkup', data);
         console.log('Datos enviados correctamente a la API');
     } catch (error) {
         console.error('Error al enviar datos a la API:', error);
